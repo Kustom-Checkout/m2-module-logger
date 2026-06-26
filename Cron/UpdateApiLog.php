@@ -78,6 +78,7 @@ class UpdateApiLog
     {
         $logs = $this->logCollectionFactory->create();
         $logs->addFieldToFilter('increment_id', ['neq' => null]);
+        $logs->addFieldToFilter('klarna_id', ['neq' => null]);
         $logs->addFieldToSelect(['klarna_id', 'increment_id']);
         $logs->getSelect()->group('klarna_id');
 

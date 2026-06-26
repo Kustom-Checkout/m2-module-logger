@@ -341,7 +341,8 @@ class UpdateApiLogTest extends GenericTestCase
     {
         $this->setupDatabaseEntries([
             ['klarna_id' => '', 'increment_id' => '1001'],
-            ['klarna_id' => 'invalid', 'increment_id' => '1002']
+            ['klarna_id' => 'invalid', 'increment_id' => '1002'],
+            ['klarna_id' => null, 'increment_id' => '1003']
         ]);
 
         $this->updateApiLog->execute();
@@ -354,6 +355,10 @@ class UpdateApiLogTest extends GenericTestCase
             "SELECT * FROM `" . $this->connection->getTableName('klarna_logs') . "` WHERE klarna_id = 'invalid'",
             1
         );
+        $this->assertDatabaseEntriesCount(
+            "SELECT * FROM `" . $this->connection->getTableName('klarna_logs') . "` WHERE klarna_id is null",
+            1
+        );
     }
 
     private function setupDatabaseEntries(array $entries): void
@@ -361,7 +366,7 @@ class UpdateApiLogTest extends GenericTestCase
         $connection = $this->connection->getConnection();
         foreach ($entries as $entry) {
             $connection->insert('klarna_logs', [
-                'klarna_id' => $entry['klarna_id'] ?? '',
+                'klarna_id' => $entry['klarna_id'],
                 'increment_id' => $entry['increment_id'] ?? null
             ]);
         }

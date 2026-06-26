@@ -115,7 +115,7 @@ class LogsTest extends TestCase
 
     private function createModel(array $instances = []): void
     {
-        $objectFactory         = new TestObjectFactory($this->mockFactory);
+        $objectFactory         = new TestObjectFactory('');
         $this->dataProvider    = $objectFactory->create(Logs::class, [], $instances);
     }
 }

@@ -57,7 +57,7 @@ class Container
      */
     public function getUrl(): string
     {
-        return $this->url;
+        return (string) $this->url;
     }
 
     /**
@@ -77,7 +77,7 @@ class Container
      */
     public function getMethod(): string
     {
-        return $this->method;
+        return (string) $this->method;
     }
 
     /**
@@ -97,7 +97,7 @@ class Container
      */
     public function getAction(): string
     {
-        return $this->action;
+        return (string) $this->action;
     }
 
     /**
@@ -177,7 +177,7 @@ class Container
      */
     public function getService(): string
     {
-        return $this->service;
+        return (string) $this->service;
     }
 
     /**
