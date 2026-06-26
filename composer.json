@@ -1,9 +1,9 @@
 {
-   "name": "vaimo/kustom-module-logger",
+    "name": "kustom/module-logger",
     "description": "Kustom logging module",
     "type": "magento2-module",
     "license": "Apache-2.0",
-    "version": "3.0.9",
+    "version": "3.1.0",
     "scripts": {
         "test": "phpunit",
         "cov": "phpunit --coverage-html coverage"
@@ -19,6 +19,8 @@
         "psr-4": {
             "Klarna\\Logger\\": "."
         },
-        "files": [ "registration.php" ]
+        "files": [
+            "registration.php"
+        ]
     }
 }
