@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright © Klarna Bank AB (publ)
+ * Copyright © Kustom AB
  *
  * For the full copyright and license information, please view the NOTICE
  * and LICENSE files that were distributed with this source code.
@@ -24,6 +24,8 @@ use Klarna\Logger\Model\Logger;
  */
 class Create
 {
+    public const REDACTED = '[redacted]';
+
     /**
      * @var LogFactory
      */
@@ -44,6 +46,10 @@ class Create
      * @var Logger
      */
     private $logger;
+    /**
+     * @var string[]
+     */
+    private array $sensitiveKeys;
 
     /**
      * @param LogFactory            $logFactory
@@ -51,6 +57,7 @@ class Create
      * @param Json                  $json
      * @param Cleanser              $cleanser
      * @param Logger                $logger
+     * @param string[]              $sensitiveKeys Keys whose values are redacted at any depth
      * @codeCoverageIgnore
      */
     public function __construct(
@@ -58,13 +65,15 @@ class Create
         LogRepository $logRepository,
         Json $json,
         Cleanser $cleanser,
-        Logger $logger
+        Logger $logger,
+        array $sensitiveKeys = ['recurring_token']
     ) {
         $this->logFactory            = $logFactory;
         $this->logRepository         = $logRepository;
         $this->json                  = $json;
         $this->cleanser              = $cleanser;
         $this->logger                = $logger;
+        $this->sensitiveKeys         = $sensitiveKeys;
     }
 
     /**
@@ -114,6 +123,31 @@ class Create
         foreach ($keys as $key) {
             if (isset($data[$key])) {
                 $data[$key] = $this->cleanser->clean($data[$key]);
+            }
+        }
+
+        return $this->redactSensitiveKeys($data);
+    }
+
+    /**
+     * Replace the value of every always-redacted key, at any depth; null, '' and [] carry no secret and stay as is
+     *
+     * @param array $data
+     * @return array
+     */
+    private function redactSensitiveKeys(array $data): array
+    {
+        if ($this->sensitiveKeys === []) {
+            return $data;
+        }
+
+        foreach ($data as $key => $value) {
+            if (in_array($key, $this->sensitiveKeys, true)) {
+                if ($value !== null && $value !== '' && $value !== []) {
+                    $data[$key] = self::REDACTED;
+                }
+            } elseif (is_array($value)) {
+                $data[$key] = $this->redactSensitiveKeys($value);
             }
         }
 

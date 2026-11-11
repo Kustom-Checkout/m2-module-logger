@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.1.1 / 2026-11-11
+
+### Breaking changes
+
+* None
+
+### Features / changes
+
+* None
+
+### Fixes
+
+* KUSTOM-123: `recurring_token` is redacted at any depth of logged request and response payloads. The list of
+  redacted keys can be extended through the `sensitiveKeys` argument of `Klarna\Logger\Model\Api\Create`.
+* KUSTOM-123: `recurring_token` is also redacted in messages and context written to `var/log/klarna.log`
+
 ## 3.1.0 / 2026-06-26
 
 ### Breaking changes

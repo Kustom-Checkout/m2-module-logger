@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright © Klarna Bank AB (publ)
+ * Copyright © Kustom AB
  *
  * For the full copyright and license information, please view the NOTICE
  * and LICENSE files that were distributed with this source code.
@@ -32,6 +32,9 @@ use Magento\Store\Model\StoreManagerInterface;
  */
 class Logger extends AbstractLogger implements LoggerInterface
 {
+    private const REDACTED = '[redacted]';
+    private const SENSITIVE_KEYS = ['recurring_token'];
+
     /**
      * @var LoggerConfigurations
      */
@@ -137,11 +140,19 @@ class Logger extends AbstractLogger implements LoggerInterface
     {
         $extra = [];
         $channel = 'Klarna';
+        $context = $this->redactContext($context);
 
         if ($message instanceof Exception) {
             $level = LogLevel::CRITICAL;
             $extra = $this->exceptionToArray($message);
             $message = $extra['message'];
+        }
+
+        if (is_string($message)) {
+            $message = $this->redactString($message);
+        }
+        if (isset($extra['message']) && is_string($extra['message'])) {
+            $extra['message'] = $this->redactString($extra['message']);
         }
 
         // monolog v3
@@ -223,5 +234,44 @@ class Logger extends AbstractLogger implements LoggerInterface
     public function forceLogging($message, array $context = [])
     {
         throw new LogicException('This function is deprecated and will be removed in future versions.');
+    }
+
+    /**
+     * Redacts the values of the sensitive keys (any depth), so they never reach klarna.log; null, '' and [] stay as is
+     *
+     * @param array $context
+     * @return array
+     */
+    private function redactContext(array $context): array
+    {
+        foreach ($context as $key => $value) {
+            if (in_array($key, self::SENSITIVE_KEYS, true)) {
+                if ($value !== null && $value !== '' && $value !== []) {
+                    $context[$key] = self::REDACTED;
+                }
+            } elseif (is_array($value)) {
+                $context[$key] = $this->redactContext($value);
+            }
+        }
+
+        return $context;
+    }
+
+    /**
+     * Redacts sensitive keys inside a JSON string, e.g. a logged request or response body
+     *
+     * @param string $message
+     * @return string
+     */
+    private function redactString(string $message): string
+    {
+        $keys = implode('|', array_map('preg_quote', self::SENSITIVE_KEYS));
+        $result = preg_replace(
+            '/("(?:' . $keys . ')"\\s*:\\s*)"(?:[^"\\\\]|\\\\.)+"/',
+            '$1"' . self::REDACTED . '"',
+            $message
+        );
+
+        return $result ?? $message;
     }
 }

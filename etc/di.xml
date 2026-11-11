@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
 /**
- * Copyright © Klarna Bank AB (publ)
+ * Copyright © Kustom AB
  *
  * For the full copyright and license information, please view the NOTICE
  * and LICENSE files that were distributed with this source code.
@@ -63,6 +63,14 @@
         <arguments>
             <argument name="handlers"  xsi:type="array">
                 <item name="system" xsi:type="object">Klarna\Logger\Model\Handlers\File</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Klarna\Logger\Model\Api\Create">
+        <arguments>
+            <argument name="sensitiveKeys" xsi:type="array">
+                <item name="recurring_token" xsi:type="string">recurring_token</item>
             </argument>
         </arguments>
     </type>
