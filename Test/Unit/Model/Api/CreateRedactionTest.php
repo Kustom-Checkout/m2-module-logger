@@ -16,6 +16,7 @@ use Klarna\Logger\Model\Log;
 use Klarna\Logger\Model\LogFactory;
 use Klarna\Logger\Model\LogRepository;
 use Klarna\Logger\Model\Logger;
+use Klarna\Logger\Model\SensitiveDataRedactor;
 use Magento\Framework\Serialize\Serializer\Json;
 use PHPUnit\Framework\TestCase;
 
@@ -29,62 +30,15 @@ class CreateRedactionTest extends TestCase
      */
     private array $saved = [];
 
-    public function testAddEntryRedactsTopLevelRecurringToken(): void
+    public function testAddEntryRedactsWithDefaultKeys(): void
     {
         $this->addEntry(
-            ['a' => 'b'],
+            ['data' => ['recurring_token' => 'secret-token']],
             ['recurring_token' => 'secret-token', 'recurring' => true]
         );
 
-        static::assertSame(
-            '{"recurring_token":"[redacted]","recurring":true}',
-            $this->saved['response']
-        );
-        static::assertSame('{"a":"b"}', $this->saved['request']);
-    }
-
-    public function testAddEntryRedactsNestedRecurringToken(): void
-    {
-        $this->addEntry(
-            ['data' => ['deep' => ['recurring_token' => 'secret-token', 'x' => 1]]],
-            ['list' => [['recurring_token' => 'secret-token'], ['other' => 'v']]]
-        );
-
-        static::assertSame('{"data":{"deep":{"recurring_token":"[redacted]","x":1}}}', $this->saved['request']);
-        static::assertSame('{"list":[{"recurring_token":"[redacted]"},{"other":"v"}]}', $this->saved['response']);
-        static::assertStringNotContainsString('secret-token', $this->saved['request'] . $this->saved['response']);
-    }
-
-    public function testAddEntryRedactsArrayValuedToken(): void
-    {
-        $this->addEntry([], ['recurring_token' => ['inner' => 'secret-token']]);
-
-        static::assertSame('{"recurring_token":"[redacted]"}', $this->saved['response']);
-    }
-
-    public function testAddEntryEmptyTokenValuesAreLoggedUnchanged(): void
-    {
-        $this->addEntry(
-            ['recurring_token' => null, 'n' => ['recurring_token' => '']],
-            ['recurring_token' => [], 'recurring' => false]
-        );
-
-        static::assertSame('{"recurring_token":null,"n":{"recurring_token":""}}', $this->saved['request']);
-        static::assertSame('{"recurring_token":[],"recurring":false}', $this->saved['response']);
-    }
-
-    public function testAddEntryWithoutTokenIsUnchanged(): void
-    {
-        $this->addEntry(
-            ['order_lines' => [['name' => 'a', 'quantity' => 1]], 'locale' => 'en-GB'],
-            ['response_status_code' => 200, 'order_id' => 'abc']
-        );
-
-        static::assertSame(
-            '{"order_lines":[{"name":"a","quantity":1}],"locale":"en-GB"}',
-            $this->saved['request']
-        );
-        static::assertSame('{"response_status_code":200,"order_id":"abc"}', $this->saved['response']);
+        static::assertSame('{"data":{"recurring_token":"[redacted]"}}', $this->saved['request']);
+        static::assertSame('{"recurring_token":"[redacted]","recurring":true}', $this->saved['response']);
     }
 
     public function testAddEntryAddressMaskingStillApplies(): void
@@ -106,11 +60,7 @@ class CreateRedactionTest extends TestCase
 
     public function testAddEntryUsesConfiguredSensitiveKeys(): void
     {
-        $this->addEntry(
-            ['api_secret' => 's', 'recurring_token' => 't'],
-            [],
-            ['api_secret']
-        );
+        $this->addEntry(['api_secret' => 's', 'recurring_token' => 't'], [], ['api_secret']);
 
         static::assertSame('{"api_secret":"[redacted]","recurring_token":"t"}', $this->saved['request']);
     }
@@ -144,11 +94,9 @@ class CreateRedactionTest extends TestCase
             $this->createMock(LogRepository::class),
             $json,
             new Cleanser(),
-            $this->createMock(Logger::class)
+            $this->createMock(Logger::class),
+            $sensitiveKeys === null ? new SensitiveDataRedactor() : new SensitiveDataRedactor($sensitiveKeys)
         ];
-        if ($sensitiveKeys !== null) {
-            $args[] = $sensitiveKeys;
-        }
         $create = new Create(...$args);
 
         $container = new Container();

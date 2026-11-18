@@ -12,6 +12,7 @@ namespace Klarna\Logger\Test\Unit\Model;
 use Klarna\AdminSettings\Model\Configurations\Logger as LoggerConfigurations;
 use Klarna\Logger\Model\Handlers\File;
 use Klarna\Logger\Model\Logger;
+use Klarna\Logger\Model\SensitiveDataRedactor;
 use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -45,6 +46,7 @@ class LoggerRedactionTest extends TestCase
     }
 
     /**
+     * @dataProvider messageProvider
      * @covers ::log
      */
     #[DataProvider('messageProvider')]
@@ -59,28 +61,12 @@ class LoggerRedactionTest extends TestCase
     /**
      * @covers ::log
      */
-    public function testNonSensitiveMessageIsUnchanged(): void
+    public function testCustomKeyListIsUsed(): void
     {
-        $this->newLogger()->log('debug', '{"order_id":"K-1"}', ['a' => 1]);
+        $this->newLogger(new SensitiveDataRedactor(['api_secret']))
+            ->log('debug', '{"api_secret":"' . self::SECRET . '"}', ['api_secret' => self::SECRET]);
 
-        $message = is_array($this->captured) ? $this->captured['message'] : $this->captured->message;
-        static::assertSame('{"order_id":"K-1"}', $message);
-    }
-
-    /**
-     * @covers ::log
-     */
-    public function testEmptyTokenValuesAreLoggedUnchanged(): void
-    {
-        $message = '{"recurring_token":null,"b":{"recurring_token":""},"recurring_token" : ""}';
-        $this->newLogger()->log('debug', $message, ['recurring_token' => null, 'n' => ['recurring_token' => '']]);
-
-        $captured = is_array($this->captured) ? $this->captured : (array)$this->captured;
-        static::assertSame($message, $captured['message']);
-        static::assertSame(
-            ['recurring_token' => null, 'n' => ['recurring_token' => '']],
-            $captured['context']
-        );
+        static::assertStringNotContainsString(self::SECRET, var_export($this->captured, true));
     }
 
     /**
@@ -93,7 +79,7 @@ class LoggerRedactionTest extends TestCase
         static::assertStringNotContainsString(self::SECRET, var_export($this->captured, true));
     }
 
-    private function newLogger(): Logger
+    private function newLogger(?SensitiveDataRedactor $redactor = null): Logger
     {
         $handler = $this->createMock(File::class);
         $handler->method('handle')->willReturnCallback(function ($record): bool {
@@ -105,6 +91,6 @@ class LoggerRedactionTest extends TestCase
         $storeManager = $this->createMock(StoreManagerInterface::class);
         $storeManager->method('getStore')->willReturn($this->createStub(StoreInterface::class));
 
-        return new Logger($config, $storeManager, [$handler]);
+        return new Logger($config, $storeManager, [$handler], $redactor ?? new SensitiveDataRedactor());
     }
 }

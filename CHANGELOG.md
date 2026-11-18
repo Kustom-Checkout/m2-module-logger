@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.1.1 / 2026-11-11
+## 3.2.0 / 2026-11-18
 
 ### Breaking changes
 
@@ -8,12 +8,12 @@
 
 ### Features / changes
 
-* None
+* KUSTOM-123: New `Klarna\Logger\Model\SensitiveDataRedactor` redacts sensitive keys for both `klarna_logs` and
+  `klarna.log`; the key list (default `recurring_token`) can be extended through its `sensitiveKeys` di argument
 
 ### Fixes
 
-* KUSTOM-123: `recurring_token` is redacted at any depth of logged request and response payloads. The list of
-  redacted keys can be extended through the `sensitiveKeys` argument of `Klarna\Logger\Model\Api\Create`.
+* KUSTOM-123: `recurring_token` is redacted at any depth of logged request and response payloads
 * KUSTOM-123: `recurring_token` is also redacted in messages and context written to `var/log/klarna.log`
 
 ## 3.1.0 / 2026-06-26

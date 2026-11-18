@@ -17,6 +17,7 @@ use Monolog\Logger as MonologLogger;
 use Psr\Log\LogLevel;
 use Psr\Log\AbstractLogger;
 use Klarna\Logger\Api\LoggerInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\App\RequestInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use Klarna\AdminSettings\Model\Configurations\Logger as LoggerConfigurations;
@@ -32,9 +33,6 @@ use Magento\Store\Model\StoreManagerInterface;
  */
 class Logger extends AbstractLogger implements LoggerInterface
 {
-    private const REDACTED = '[redacted]';
-    private const SENSITIVE_KEYS = ['recurring_token'];
-
     /**
      * @var LoggerConfigurations
      */
@@ -51,21 +49,28 @@ class Logger extends AbstractLogger implements LoggerInterface
      * @var StoreManagerInterface
      */
     private StoreManagerInterface $storeManager;
+    /**
+     * @var SensitiveDataRedactor
+     */
+    private SensitiveDataRedactor $redactor;
 
     /**
      * @param LoggerConfigurations $loggerConfigurations
      * @param StoreManagerInterface $storeManager
      * @param array $handlers
+     * @param SensitiveDataRedactor|null $redactor
      * @codeCoverageIgnore
      */
     public function __construct(
         LoggerConfigurations $loggerConfigurations,
         StoreManagerInterface $storeManager,
-        array $handlers
+        array $handlers,
+        ?SensitiveDataRedactor $redactor = null
     ) {
         $this->loggerConfigurations = $loggerConfigurations;
         $this->handlers = $handlers;
         $this->storeManager = $storeManager;
+        $this->redactor = $redactor ?? ObjectManager::getInstance()->get(SensitiveDataRedactor::class);
     }
 
     /**
@@ -140,7 +145,7 @@ class Logger extends AbstractLogger implements LoggerInterface
     {
         $extra = [];
         $channel = 'Klarna';
-        $context = $this->redactContext($context);
+        $context = $this->redactor->redactArray($context);
 
         if ($message instanceof Exception) {
             $level = LogLevel::CRITICAL;
@@ -149,10 +154,10 @@ class Logger extends AbstractLogger implements LoggerInterface
         }
 
         if (is_string($message)) {
-            $message = $this->redactString($message);
+            $message = $this->redactor->redactJson($message);
         }
         if (isset($extra['message']) && is_string($extra['message'])) {
-            $extra['message'] = $this->redactString($extra['message']);
+            $extra['message'] = $this->redactor->redactJson($extra['message']);
         }
 
         // monolog v3
@@ -234,44 +239,5 @@ class Logger extends AbstractLogger implements LoggerInterface
     public function forceLogging($message, array $context = [])
     {
         throw new LogicException('This function is deprecated and will be removed in future versions.');
-    }
-
-    /**
-     * Redacts the values of the sensitive keys (any depth), so they never reach klarna.log; null, '' and [] stay as is
-     *
-     * @param array $context
-     * @return array
-     */
-    private function redactContext(array $context): array
-    {
-        foreach ($context as $key => $value) {
-            if (in_array($key, self::SENSITIVE_KEYS, true)) {
-                if ($value !== null && $value !== '' && $value !== []) {
-                    $context[$key] = self::REDACTED;
-                }
-            } elseif (is_array($value)) {
-                $context[$key] = $this->redactContext($value);
-            }
-        }
-
-        return $context;
-    }
-
-    /**
-     * Redacts sensitive keys inside a JSON string, e.g. a logged request or response body
-     *
-     * @param string $message
-     * @return string
-     */
-    private function redactString(string $message): string
-    {
-        $keys = implode('|', array_map('preg_quote', self::SENSITIVE_KEYS));
-        $result = preg_replace(
-            '/("(?:' . $keys . ')"\\s*:\\s*)"(?:[^"\\\\]|\\\\.)+"/',
-            '$1"' . self::REDACTED . '"',
-            $message
-        );
-
-        return $result ?? $message;
     }
 }

@@ -17,6 +17,8 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Klarna\Logger\Model\Logger;
+use Klarna\Logger\Model\SensitiveDataRedactor;
+use Magento\Framework\App\ObjectManager;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -24,8 +26,6 @@ use Klarna\Logger\Model\Logger;
  */
 class Create
 {
-    public const REDACTED = '[redacted]';
-
     /**
      * @var LogFactory
      */
@@ -47,17 +47,17 @@ class Create
      */
     private $logger;
     /**
-     * @var string[]
+     * @var SensitiveDataRedactor
      */
-    private array $sensitiveKeys;
+    private SensitiveDataRedactor $redactor;
 
     /**
-     * @param LogFactory            $logFactory
-     * @param LogRepository         $logRepository
-     * @param Json                  $json
-     * @param Cleanser              $cleanser
-     * @param Logger                $logger
-     * @param string[]              $sensitiveKeys Keys whose values are redacted at any depth
+     * @param LogFactory $logFactory
+     * @param LogRepository $logRepository
+     * @param Json $json
+     * @param Cleanser $cleanser
+     * @param Logger $logger
+     * @param SensitiveDataRedactor|null $redactor
      * @codeCoverageIgnore
      */
     public function __construct(
@@ -66,14 +66,14 @@ class Create
         Json $json,
         Cleanser $cleanser,
         Logger $logger,
-        array $sensitiveKeys = ['recurring_token']
+        ?SensitiveDataRedactor $redactor = null
     ) {
         $this->logFactory            = $logFactory;
         $this->logRepository         = $logRepository;
         $this->json                  = $json;
         $this->cleanser              = $cleanser;
         $this->logger                = $logger;
-        $this->sensitiveKeys         = $sensitiveKeys;
+        $this->redactor              = $redactor ?? ObjectManager::getInstance()->get(SensitiveDataRedactor::class);
     }
 
     /**
@@ -126,31 +126,6 @@ class Create
             }
         }
 
-        return $this->redactSensitiveKeys($data);
-    }
-
-    /**
-     * Replace the value of every always-redacted key, at any depth; null, '' and [] carry no secret and stay as is
-     *
-     * @param array $data
-     * @return array
-     */
-    private function redactSensitiveKeys(array $data): array
-    {
-        if ($this->sensitiveKeys === []) {
-            return $data;
-        }
-
-        foreach ($data as $key => $value) {
-            if (in_array($key, $this->sensitiveKeys, true)) {
-                if ($value !== null && $value !== '' && $value !== []) {
-                    $data[$key] = self::REDACTED;
-                }
-            } elseif (is_array($value)) {
-                $data[$key] = $this->redactSensitiveKeys($value);
-            }
-        }
-
-        return $data;
+        return $this->redactor->redactArray($data);
     }
 }

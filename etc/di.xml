@@ -67,7 +67,7 @@
         </arguments>
     </type>
 
-    <type name="Klarna\Logger\Model\Api\Create">
+    <type name="Klarna\Logger\Model\SensitiveDataRedactor">
         <arguments>
             <argument name="sensitiveKeys" xsi:type="array">
                 <item name="recurring_token" xsi:type="string">recurring_token</item>
