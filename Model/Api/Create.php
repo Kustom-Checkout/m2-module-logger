@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright © Klarna Bank AB (publ)
+ * Copyright © Kustom AB
  *
  * For the full copyright and license information, please view the NOTICE
  * and LICENSE files that were distributed with this source code.
@@ -17,6 +17,8 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Klarna\Logger\Model\Logger;
+use Klarna\Logger\Model\SensitiveDataRedactor;
+use Magento\Framework\App\ObjectManager;
 
 /**
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
@@ -44,13 +46,18 @@ class Create
      * @var Logger
      */
     private $logger;
+    /**
+     * @var SensitiveDataRedactor
+     */
+    private SensitiveDataRedactor $redactor;
 
     /**
-     * @param LogFactory            $logFactory
-     * @param LogRepository         $logRepository
-     * @param Json                  $json
-     * @param Cleanser              $cleanser
-     * @param Logger                $logger
+     * @param LogFactory $logFactory
+     * @param LogRepository $logRepository
+     * @param Json $json
+     * @param Cleanser $cleanser
+     * @param Logger $logger
+     * @param SensitiveDataRedactor|null $redactor
      * @codeCoverageIgnore
      */
     public function __construct(
@@ -58,13 +65,15 @@ class Create
         LogRepository $logRepository,
         Json $json,
         Cleanser $cleanser,
-        Logger $logger
+        Logger $logger,
+        ?SensitiveDataRedactor $redactor = null
     ) {
         $this->logFactory            = $logFactory;
         $this->logRepository         = $logRepository;
         $this->json                  = $json;
         $this->cleanser              = $cleanser;
         $this->logger                = $logger;
+        $this->redactor              = $redactor ?? ObjectManager::getInstance()->get(SensitiveDataRedactor::class);
     }
 
     /**
@@ -117,6 +126,6 @@ class Create
             }
         }
 
-        return $data;
+        return $this->redactor->redactArray($data);
     }
 }
