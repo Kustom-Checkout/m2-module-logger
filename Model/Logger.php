@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright © Klarna Bank AB (publ)
+ * Copyright © Kustom AB
  *
  * For the full copyright and license information, please view the NOTICE
  * and LICENSE files that were distributed with this source code.
@@ -17,6 +17,7 @@ use Monolog\Logger as MonologLogger;
 use Psr\Log\LogLevel;
 use Psr\Log\AbstractLogger;
 use Klarna\Logger\Api\LoggerInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\App\RequestInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use Klarna\AdminSettings\Model\Configurations\Logger as LoggerConfigurations;
@@ -48,21 +49,28 @@ class Logger extends AbstractLogger implements LoggerInterface
      * @var StoreManagerInterface
      */
     private StoreManagerInterface $storeManager;
+    /**
+     * @var SensitiveDataRedactor
+     */
+    private SensitiveDataRedactor $redactor;
 
     /**
      * @param LoggerConfigurations $loggerConfigurations
      * @param StoreManagerInterface $storeManager
      * @param array $handlers
+     * @param SensitiveDataRedactor|null $redactor
      * @codeCoverageIgnore
      */
     public function __construct(
         LoggerConfigurations $loggerConfigurations,
         StoreManagerInterface $storeManager,
-        array $handlers
+        array $handlers,
+        ?SensitiveDataRedactor $redactor = null
     ) {
         $this->loggerConfigurations = $loggerConfigurations;
         $this->handlers = $handlers;
         $this->storeManager = $storeManager;
+        $this->redactor = $redactor ?? ObjectManager::getInstance()->get(SensitiveDataRedactor::class);
     }
 
     /**
@@ -137,11 +145,19 @@ class Logger extends AbstractLogger implements LoggerInterface
     {
         $extra = [];
         $channel = 'Klarna';
+        $context = $this->redactor->redactArray($context);
 
         if ($message instanceof Exception) {
             $level = LogLevel::CRITICAL;
             $extra = $this->exceptionToArray($message);
             $message = $extra['message'];
+        }
+
+        if (is_string($message)) {
+            $message = $this->redactor->redactJson($message);
+        }
+        if (isset($extra['message']) && is_string($extra['message'])) {
+            $extra['message'] = $this->redactor->redactJson($extra['message']);
         }
 
         // monolog v3

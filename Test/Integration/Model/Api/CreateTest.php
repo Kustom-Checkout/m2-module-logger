@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright © Klarna Bank AB (publ)
+ * Copyright © Kustom AB
  *
  * For the full copyright and license information, please view the NOTICE
  * and LICENSE files that were distributed with this source code.
@@ -100,5 +100,38 @@ class CreateTest extends TestCase
         $log = $collection->getFirstItem();
 
         $this->assertEquals($expectedData, $log->toArray(['request', 'response']));
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     * @magentoDbIsolation enabled
+     */
+    public function testAddEntryRecurringTokenIsRedactedAtAnyDepth(): void
+    {
+        $request = ['nested' => ['recurring_token' => 'secret-token']];
+        $response = [
+            'response_status_code' => 200,
+            'recurring_token' => 'secret-token',
+            'recurring' => true,
+        ];
+
+        $this->container->setRequest($request);
+        $this->container->setResponse($response);
+        $this->createLogger->addEntry($this->container);
+
+        $log = $this->collectionFactory->create()
+            ->setPageSize(1)
+            ->setOrder('log_id')
+            ->getFirstItem();
+        $data = $log->toArray(['request', 'response']);
+
+        $this->assertEquals(
+            json_encode(['nested' => ['recurring_token' => '[redacted]']]),
+            $data['request']
+        );
+        $this->assertEquals(
+            json_encode(['response_status_code' => 200, 'recurring_token' => '[redacted]', 'recurring' => true]),
+            $data['response']
+        );
     }
 }
